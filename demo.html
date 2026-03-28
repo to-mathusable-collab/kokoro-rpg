@@ -1,0 +1,346 @@
+<!DOCTYPE html><html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>こころのレベルアップRPG｜体験版</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@400;500;700&family=Kaisei+Opti:wght@400;700&display=swap');
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;overflow:hidden}
+body{font-family:'Zen Maru Gothic',sans-serif;background:#FDF8FC;color:#3D3347}
+button{cursor:pointer;border:none;background:none;font-family:'Zen Maru Gothic',sans-serif}
+::-webkit-scrollbar{width:4px}
+::-webkit-scrollbar-thumb{background:rgba(184,157,212,.3);border-radius:4px}
+@keyframes fadeUp{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:translateY(0)}}
+@keyframes floatY{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
+@keyframes pop{from{opacity:0;transform:scale(.88)}to{opacity:1;transform:scale(1)}}
+@keyframes shimmer{0%{opacity:.6}50%{opacity:1}100%{opacity:.6}}
+.se{animation:fadeUp .38s ease-out both}
+.fl{animation:floatY 3s ease-in-out infinite}
+.pp{animation:pop .3s ease-out both}
+.shimmer{animation:shimmer 2s ease-in-out infinite}
+</style>
+</head>
+<body>
+<div id="root" style="height:100%;overflow:auto;max-width:430px;margin:0 auto;background:#FDF8FC"></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script>
+const {useState,createContext,useContext,createElement:h}=React;const C={
+bg:’#FDF8FC’,card:‘rgba(255,253,255,.98)’,
+pur:’#B89DD4’,purL:’#D4BFEA’,purXL:‘rgba(240,233,250,.95)’,
+ora:’#F0A8A8’,grn:’#89C4A0’,gld:’#D4A060’,
+txt:’#3D3347’,txtL:’#7A6878’,txtM:’#B0A8B8’,
+bdr:‘rgba(184,157,212,.18)’,bdrM:‘rgba(184,157,212,.35)’,
+sh:‘0 3px 20px rgba(100,70,130,.07)’,shL:‘0 8px 32px rgba(100,70,130,.13)’,
+};
+/* ── データ ── */
+const TYPES={
+anxious:{name:‘ぴったりよりそいタイプ’,em:‘🤝’,
+desc:‘つながりをとても大切にする、愛情深い人。相手の反応が気になったり、不安になりやすい一面もある。’,
+tend:‘相手の言動を深読みしたり、連絡が来ないと不安になりやすい傾向があるよ。’,
+advice:‘感情ノートで「今の不安は事実？解釈？」を確認するのが効果的。’,
+col:’#F9C8D8’,gr:‘linear-gradient(160deg,#FDE8EE,#F9C8D8)’,
+items:[‘📓 感情ノート’,‘🔍 事実メガネ’,‘🧭 自分軸コンパス’]},
+stable:{name:‘じぶんのペースタイプ’,em:‘🌿’,
+desc:‘自分も相手も大切にできる、穏やかな人。適切な距離感で、安定した関係を築ける。’,
+tend:‘今は揺れていても、自分の軸を持っているタイプ。少し立ち止まると、自分の声が聴こえてくるよ。’,
+advice:‘自分軸コンパスで「本当はどうしたい？」を確認しながら進もう。’,
+col:’#A8D8B4’,gr:‘linear-gradient(160deg,#DCF0E0,#A8D8B4)’,
+items:[‘🧭 自分軸コンパス’,‘⚡ 自己肯定の剣’,‘💍 手放しの指輪’]},
+avoidant:{name:‘そっとはなれるタイプ’,em:‘🏰’,
+desc:‘一人の時間を大切にする、自立した人。深く関わることへの怖さや、感情を出しにくい一面もある。’,
+tend:‘感情をうまく言葉にしにくかったり、距離をおいて自分を守ろうとする傾向があるよ。’,
+advice:‘感情ノートで自分の気持ちに気づく練習が効果的。少しずつ、自分を見せる練習をしよう。’,
+col:’#A4C4F0’,gr:‘linear-gradient(160deg,#D8E8FC,#A4C4F0)’,
+items:[‘📓 感情ノート’,‘🛡️ 境界線の盾’,‘⚡ 自己肯定の剣’]},
+};
+const TQ=[
+{text:’「最近どう？」と聞かれたとき’,opts:[{t:‘嬉しくて、いろいろ話してしまった’,ty:‘anxious’},{t:‘ありがとう、必要なら話すかな’,ty:‘stable’},{t:‘大丈夫、って言った。心配させたくない’,ty:‘anxious’},{t:‘別に、って流した。聞かれるのが苦手’,ty:‘avoidant’}]},
+{text:‘友達にちょっとひどいことを言われた’,opts:[{t:‘傷ついた、って言えた。でもあとまで引きずった’,ty:‘anxious’},{t:‘それは傷ついたよ、ってその場で伝えられた’,ty:‘stable’},{t:‘傷ついたけど、自分が悪かったのかなって考えた’,ty:‘anxious’},{t:‘別に、って流した。傷ついたって見せたくない’,ty:‘avoidant’}]},
+{text:‘頑張ったのに、うまくいかなかった日’,opts:[{t:‘やっぱり私はダメだ、ってしばらく落ち込んだ’,ty:‘anxious’},{t:‘悔しいけど、次に活かそうって切り替えられた’,ty:‘stable’},{t:‘なんであの人のせいで、ってイライラした’,ty:‘avoidant’},{t:‘まあ仕方ない、って特に誰にも言わなかった’,ty:‘avoidant’}]},
+{text:‘すごく疲れている日、一番したいことは？’,opts:[{t:‘誰かそばにいてほしい。話を聞いてほしい’,ty:‘anxious’},{t:‘少し誰かと話して、あとはゆっくり休む’,ty:‘stable’},{t:‘一人でいたいけど、放っておかれるのも嫌’,ty:‘anxious’},{t:‘完全に一人がいい。誰にも気を遣いたくない’,ty:‘avoidant’}]},
+{text:‘好きな人との約束の日、朝から既読がつかない’,opts:[{t:‘気になって、もう一回送ってしまった’,ty:‘anxious’},{t:‘忙しいのかな。来たら返そう’,ty:‘stable’},{t:‘嫌われたのかな、ってずっと考えてしまった’,ty:‘anxious’},{t:‘来なかったら来なかったでいい、って思った’,ty:‘avoidant’}]},
+{text:‘好きな人に「一緒にいると落ち着く」と言われた’,opts:[{t:‘すごく嬉しくて、もっと言ってほしいって思った’,ty:‘anxious’},{t:‘嬉しかった。素直に受け取れた’,ty:‘stable’},{t:‘嬉しいけど、本当に？って疑ってしまった’,ty:‘anxious’},{t:‘嬉しいけど、急に距離をとりたくなった’,ty:‘avoidant’}]},
+{text:‘好きな人への不満、どうした？’,opts:[{t:‘言いたくて、つい感情的になってしまった’,ty:‘anxious’},{t:‘タイミングを見て、ちゃんと伝えられた’,ty:‘stable’},{t:‘言いたかったけど、嫌われそうで言えなかった’,ty:‘anxious’},{t:‘言っても変わらないし、黙って飲み込んだ’,ty:‘avoidant’}]},
+{text:‘自分のことを一言で表すなら？’,opts:[{t:‘感情豊かで、人とのつながりを大切にしたい’,ty:‘anxious’},{t:‘自分のペースがあって、穏やかにいたい’,ty:‘stable’},{t:‘感情の波があって、自分でもよくわからない’,ty:‘anxious’},{t:‘一人の時間が好きで、あまり人を信用しない’,ty:‘avoidant’}]},
+];
+const QS_MAP={
+anxious:[
+{text:‘相手への気持ちについて、今どう感じていますか？’,opts:[{t:‘相手がいないと自分はダメになる気がする’,s:1},{t:‘相手の機嫌で自分の気分が大きく変わる’,s:3},{t:‘気になるけど、少し距離が取れてきた’,s:5},{t:‘相手は相手、自分は自分と思えてきた’,s:7}]},
+{text:‘連絡・反応について、今どう感じていますか？’,opts:[{t:‘既読がつかないと頭から離れない’,s:1},{t:‘不安で確認したくなることがある’,s:3},{t:‘気になるけど待てることが増えた’,s:5},{t:‘相手のペースがあると思えるようになった’,s:7}]},
+{text:‘自分の気持ちについて、今どうですか？’,opts:[{t:‘嫌われないように我慢することが多い’,s:1},{t:‘本当は不安なのに強がってしまう’,s:3},{t:‘少しずつ本音を出せるようになってきた’,s:5},{t:‘自分の気持ちを素直に伝えられる’,s:7}]},
+{text:‘自分の人生について、今どう感じていますか？’,opts:[{t:‘相手のことで頭がいっぱいで他のことが手につかない’,s:1},{t:‘自分のことも大切にしたいとは思う’,s:3},{t:‘自分の人生を生きようと意識できている’,s:5},{t:‘一緒にいられたら嬉しい、でもいなくても生きていけると思う’,s:7}]},
+{text:‘今の毎日の生活（食事・睡眠・仕事）は？’,opts:[{t:‘ほとんど手につかない’,s:1},{t:‘なんとかこなしているが気力がない’,s:3},{t:‘意識して続けようとしている’,s:5},{t:‘ちゃんと守れている’,s:7}]},
+],
+avoidant:[
+{text:‘人に頼ることについて、今どう感じていますか？’,opts:[{t:‘人に頼るのが苦手で全部一人でやろうとする’,s:1},{t:‘頼りたい気持ちはあるけど、なかなか言えない’,s:3},{t:‘小さなことなら少し頼れるようになってきた’,s:5},{t:‘人に頼ってもいいと思えるようになった’,s:7}]},
+{text:‘弱さを見せることについて、今どうですか？’,opts:[{t:‘弱いところを見せるのが怖くて隠してしまう’,s:1},{t:‘見せたいけど、どうすればいいかわからない’,s:3},{t:‘信頼できる人には少し見せられるようになった’,s:5},{t:‘弱さを見せても大丈夫だと思えるようになった’,s:7}]},
+{text:‘人との距離感について、今どう感じていますか？’,opts:[{t:‘深い関係になると逃げたくなる’,s:1},{t:‘一人の方が楽だけど、さびしい気持ちもある’,s:3},{t:‘問題が起きても距離を取らずにいられることが増えた’,s:5},{t:‘誰かと一緒にいると安心することもある’,s:7}]},
+{text:‘気持ちを伝えることについて、今どうですか？’,opts:[{t:‘自分の気持ちを話すのが苦手でいつも飲み込む’,s:1},{t:‘本当はわかってほしい気持ちはある’,s:3},{t:‘少しずつ気持ちを言葉にできるようになってきた’,s:5},{t:‘自分の気持ちを話せる人がいる’,s:7}]},
+{text:‘誰かとのつながりについて、今どう感じていますか？’,opts:[{t:‘誰かと深く関わるのが怖い’,s:1},{t:‘関わりたい気持ちと逃げたい気持ちが両方ある’,s:3},{t:‘少しずつつながりを大切にしたいと思えてきた’,s:5},{t:‘誰かと一緒に生きていくのも悪くないと思う’,s:7}]},
+],
+stable:[
+{text:‘気持ちを伝えることについて、今どうですか？’,opts:[{t:‘自分の気持ちをうまく言葉にできないことが多い’,s:1},{t:‘伝えたいけど、どう言えばいいか迷うことがある’,s:3},{t:‘少しずつ言葉にできるようになってきた’,s:5},{t:‘自分の気持ちを自然に伝えられる’,s:7}]},
+{text:‘相手との違いについて、今どう感じていますか？’,opts:[{t:‘相手が自分と違う意見だと不安になる’,s:1},{t:‘違っていいとは思うけど、うまく受け入れられない’,s:3},{t:‘少しずつ相手の違いを尊重できるようになった’,s:5},{t:‘相手の気持ちと自分の気持ちは違っていいと思える’,s:7}]},
+{text:‘問題が起きたとき、どうしていますか？’,opts:[{t:‘問題が起きると避けたり我慢したりしてしまう’,s:1},{t:‘話し合いたいけど、うまくいかないことが多い’,s:3},{t:‘少しずつ話し合えるようになってきた’,s:5},{t:‘問題が起きたら素直に話し合える’,s:7}]},
+{text:‘相手への期待について、今どうですか？’,opts:[{t:‘相手に期待しすぎてがっかりすることが多い’,s:1},{t:‘期待しすぎないようにしようとしている’,s:3},{t:‘相手を変えようとしなくなってきた’,s:5},{t:‘相手をそのまま尊重できるようになった’,s:7}]},
+{text:‘関係を育てることについて、今どう感じていますか？’,opts:[{t:‘関係をどう育てればいいかわからない’,s:1},{t:‘一緒に成長したいとは思うけど難しい’,s:3},{t:‘少しずつ相手との時間を大切にできている’,s:5},{t:‘感謝を伝えながら、一緒に成長していきたいと思える’,s:7}]},
+],
+};
+const LV_NAMES=[‘始まりの村’,‘迷いの森’,‘揺れの海’,‘理解の山’,‘尊重の城’,‘めざめの街’,‘愛の草原’];
+const LV_EMS=[‘🏘️’,‘🌿’,‘🌊’,‘⛰️’,‘🏰’,‘🏙️’,‘🌸’];
+const LV_GRS=[
+‘linear-gradient(160deg,#FDE8EE,#F9C8D8)’,
+‘linear-gradient(160deg,#DCF0E0,#A8D8B4)’,
+‘linear-gradient(160deg,#D8E8FC,#A4C4F0)’,
+‘linear-gradient(160deg,#F0E4D0,#DCC4A0)’,
+‘linear-gradient(160deg,#FFF0C8,#F0D484)’,
+‘linear-gradient(160deg,#EAD8F8,#C8A8E8)’,
+‘linear-gradient(160deg,#FCE8F0,#F0B8D0)’,
+];
+const calcType=ans=>{const c={anxious:0,stable:0,avoidant:0};ans.forEach(t=>{if(c[t]!==undefined)c[t]++;});return Object.entries(c).sort((a,b)=>b[1]-a[1])[0][0];};
+const calcLv=sc=>{const a=sc.reduce((x,y)=>x+y,0)/sc.length;if(a<1.7)return 1;if(a<2.8)return 2;if(a<4.1)return 3;if(a<5.1)return 4;if(a<5.9)return 5;if(a<6.5)return 6;return 7;};
+const Ctx=createContext(null);
+/* ── 共通 ── */
+const Bar=({v,col=C.pur,bg=‘rgba(184,157,212,.15)’,ht=8})=>
+h(‘div’,{style:{background:bg,borderRadius:100,height:ht,overflow:‘hidden’}},
+h(‘div’,{style:{background:col,width:${Math.min(100,Math.max(0,v))}%,height:‘100%’,borderRadius:100,transition:‘width .8s ease’}}));
+const Btn=({label,onClick,col=C.pur,ghost=false,small=false})=>
+h(‘button’,{onClick,style:{
+width:‘100%’,borderRadius:100,padding:small?‘12px’:‘16px’,
+fontSize:small?14:16,fontWeight:700,
+background:ghost?‘transparent’:col,color:ghost?C.txtM:’#fff’,
+border:ghost?1.5px solid ${C.bdrM}:‘none’,
+boxShadow:ghost?‘none’:0 4px 18px ${col}44,
+cursor:‘pointer’,transition:‘transform .15s’},
+onMouseDown:x=>{x.currentTarget.style.transform=‘scale(.97)’},
+onMouseUp:x=>{x.currentTarget.style.transform=‘scale(1)’},
+onTouchStart:x=>{x.currentTarget.style.transform=‘scale(.97)’},
+onTouchEnd:x=>{x.currentTarget.style.transform=‘scale(1)’}},label);
+/* ── Step表示 ── */
+const StepBadge=({step,total})=>
+h(‘div’,{style:{display:‘flex’,justifyContent:‘center’,gap:6,marginBottom:20}},
+Array.from({length:total},(_, i)=>
+h(‘div’,{key:i,style:{
+width:i===step-1?24:8,height:8,borderRadius:100,
+background:i===step-1?C.pur:C.bdrM,
+transition:‘all .3s ease’}})));
+/* ── オープニング ── */
+const Opening=()=>{
+const{nav}=useContext(Ctx);
+return h(‘div’,{className:‘se’,style:{minHeight:‘100vh’,display:‘flex’,flexDirection:‘column’,alignItems:‘center’,justifyContent:‘center’,padding:‘32px 24px’,background:‘linear-gradient(160deg,#FDE8EE 0%,#EAD8F8 50%,#DCF0E0 100%)’}},
+h(‘div’,{style:{fontSize:11,fontWeight:700,letterSpacing:‘2px’,color:‘rgba(61,51,71,.4)’,marginBottom:24,textTransform:‘uppercase’,textAlign:‘center’}},‘体験版 · DEMO’),
+h(‘div’,{className:‘fl’,style:{fontSize:72,marginBottom:20,textAlign:‘center’}},‘🌸’),
+h(‘div’,{style:{fontFamily:”‘Kaisei Opti’,serif”,fontSize:30,fontWeight:700,marginBottom:10,textAlign:‘center’,lineHeight:1.3}},‘こころのレベルアップRPG’),
+h(‘div’,{style:{fontSize:15,color:‘rgba(61,51,71,.55)’,marginBottom:32,textAlign:‘center’,lineHeight:1.8}},‘恋愛で揺れた心を、\n自分の旅として歩いていくアプリ。\nまずは体験してみよう🌿’),
+h(‘div’,{style:{width:‘100%’,background:‘rgba(255,255,255,.55)’,borderRadius:22,padding:‘18px 20px’,marginBottom:32}},
+h(‘div’,{style:{fontSize:13,fontWeight:700,color:C.pur,marginBottom:12}},‘✨ 体験の流れ’),
+…[
+{em:‘1️⃣’,tx:‘あなたのタイプを診断する（8問）’},
+{em:‘2️⃣’,tx:‘今の現在地をチェックする（5問）’},
+{em:‘3️⃣’,tx:‘あなただけの旅のスタート地点がわかる’},
+].map(({em,tx})=>
+h(‘div’,{key:tx,style:{display:‘flex’,gap:10,alignItems:‘center’,marginBottom:8,lastChild:{marginBottom:0}}},
+h(‘span’,{style:{fontSize:16}},em),
+h(‘span’,{style:{fontSize:14,color:C.txt,lineHeight:1.5}},tx)))),
+h(Btn,{label:‘体験をはじめる →’,onClick:()=>nav(‘diagnosis’)}));
+};
+/* ── タイプ診断 ── */
+const Diagnosis=()=>{
+const{setResult,nav}=useContext(Ctx);
+const[qi,setQi]=useState(0);
+const[answers,setAnswers]=useState([]);
+const[shuffled,setShuffled]=useState(()=>[…TQ[0].opts].sort(()=>Math.random()-.5));
+const q=TQ[qi];
+const pick=ty=>{
+const na=[…answers,ty];
+if(qi<TQ.length-1){
+setAnswers(na);setQi(qi+1);
+setShuffled([…TQ[qi+1].opts].sort(()=>Math.random()-.5));
+} else {
+const type=calcType(na);
+setResult(r=>({…r,userType:type}));
+nav(‘type_result’);
+}
+};
+const pct=Math.round((qi/TQ.length)*100);
+return h(‘div’,{className:‘se’,style:{minHeight:‘100vh’,paddingBottom:40}},
+h(‘div’,{style:{background:‘linear-gradient(160deg,#FDE8EE,#EAD8F8)’,padding:‘28px 20px 22px’,borderRadius:‘0 0 28px 28px’,marginBottom:24}},
+h(‘div’,{style:{fontSize:11,fontWeight:700,letterSpacing:‘1.5px’,color:‘rgba(61,51,71,.4)’,marginBottom:4,textTransform:‘uppercase’}},‘STEP 1 · タイプ診断’),
+h(‘div’,{style:{fontFamily:”‘Kaisei Opti’,serif”,fontSize:22,fontWeight:700,marginBottom:16}},‘あなたのタイプは？’),
+h(‘div’,{style:{display:‘flex’,justifyContent:‘space-between’,fontSize:12,color:‘rgba(61,51,71,.4)’,marginBottom:8}},
+h(‘span’,null,${qi+1} / ${TQ.length}),
+h(‘span’,null,${pct}%)),
+h(Bar,{v:pct,bg:‘rgba(255,255,255,.35)’,col:‘rgba(255,255,255,.85)’,ht:7})),
+h(‘div’,{style:{padding:‘0 16px’}},
+h(‘div’,{className:‘pp’,key:qi,style:{background:‘rgba(255,255,255,.97)’,borderRadius:22,padding:‘20px’,boxShadow:C.sh,border:1px solid ${C.bdr},marginBottom:18}},
+h(‘div’,{style:{fontFamily:”‘Kaisei Opti’,serif”,fontSize:17,fontWeight:700,lineHeight:1.65,color:C.txt}},q.text)),
+h(‘div’,{style:{display:‘flex’,flexDirection:‘column’,gap:10}},
+shuffled.map((op,i)=>
+h(‘button’,{key:i,onClick:()=>pick(op.ty),style:{
+background:‘rgba(255,255,255,.97)’,border:1.5px solid ${C.bdr},borderRadius:16,
+padding:‘13px 16px’,textAlign:‘left’,fontSize:15,color:C.txt,
+fontWeight:500,lineHeight:1.55,cursor:‘pointer’,transition:‘all .15s’,
+boxShadow:C.sh,display:‘flex’,alignItems:‘center’,gap:12},
+onMouseEnter:x=>{x.currentTarget.style.borderColor=C.pur;x.currentTarget.style.background=C.purXL;},
+onMouseLeave:x=>{x.currentTarget.style.borderColor=C.bdr;x.currentTarget.style.background=‘rgba(255,255,255,.97)’;}},
+h(‘span’,{style:{display:‘inline-flex’,width:26,height:26,borderRadius:‘50%’,
+background:${C.pur}18,color:C.pur,fontWeight:700,fontSize:13,
+alignItems:‘center’,justifyContent:‘center’,flexShrink:0}},i+1),
+op.t)))));
+};
+/* ── タイプ結果 ── */
+const TypeResult=()=>{
+const{result,nav}=useContext(Ctx);
+const tp=TYPES[result.userType]||TYPES.stable;
+return h(‘div’,{className:‘se’,style:{minHeight:‘100vh’,paddingBottom:40}},
+h(‘div’,{style:{background:tp.gr,padding:‘40px 20px 28px’,borderRadius:‘0 0 36px 36px’,textAlign:‘center’,marginBottom:24}},
+h(‘div’,{style:{fontSize:11,fontWeight:700,letterSpacing:‘1.5px’,color:‘rgba(61,51,71,.4)’,marginBottom:16,textTransform:‘uppercase’}},‘診断結果’),
+h(‘div’,{className:‘fl’,style:{fontSize:72,marginBottom:12}},tp.em),
+h(‘div’,{style:{fontFamily:”‘Kaisei Opti’,serif”,fontSize:26,fontWeight:700,marginBottom:8}},tp.name),
+h(‘div’,{style:{fontSize:14,color:‘rgba(61,51,71,.6)’,lineHeight:1.75,background:‘rgba(255,255,255,.45)’,borderRadius:16,padding:‘12px 16px’}},tp.desc)),
+h(‘div’,{style:{padding:‘0 16px’}},
+h(‘div’,{style:{background:‘rgba(255,255,255,.97)’,borderRadius:22,padding:20,boxShadow:C.sh,border:1px solid ${C.bdr},marginBottom:14}},
+h(‘div’,{style:{fontSize:12,fontWeight:700,letterSpacing:‘1.5px’,color:C.txtM,textTransform:‘uppercase’,marginBottom:10}},‘💫 あなたの傾向’),
+h(‘div’,{style:{fontSize:15,color:C.txt,lineHeight:1.8}},tp.tend)),
+h(‘div’,{style:{background:‘rgba(255,255,255,.97)’,borderRadius:22,padding:20,boxShadow:C.sh,border:1px solid ${C.bdr},marginBottom:14}},
+h(‘div’,{style:{fontSize:12,fontWeight:700,letterSpacing:‘1.5px’,color:C.txtM,textTransform:‘uppercase’,marginBottom:12}},‘🎒 おすすめの装備’),
+h(‘div’,{style:{display:‘flex’,flexDirection:‘column’,gap:8}},
+tp.items.map(item=>
+h(‘div’,{key:item,style:{background:C.purXL,borderRadius:12,padding:‘10px 14px’,fontSize:14,fontWeight:600,color:C.txt}},item)))),
+h(‘div’,{style:{background:${tp.col}22,borderRadius:20,padding:‘14px 16px’,marginBottom:24,border:1px solid ${tp.col}44}},
+h(‘div’,{style:{fontSize:12,fontWeight:700,color:C.txtL,marginBottom:6}},‘💡 アドバイス’),
+h(‘div’,{style:{fontSize:14,color:C.txt,lineHeight:1.75}},tp.advice)),
+h(‘div’,{style:{background:‘linear-gradient(135deg,#F0EAFA,#EAF0F8)’,borderRadius:22,padding:‘20px’,marginBottom:20,border:1px solid ${C.bdrM},textAlign:‘center’}},
+h(‘div’,{style:{fontSize:13,color:C.pur,fontWeight:700,marginBottom:8}},‘✨ 次のSTEP’),
+h(‘div’,{style:{fontFamily:”‘Kaisei Opti’,serif”,fontSize:18,fontWeight:700,marginBottom:8}},‘今の現在地を確認しよう’),
+h(‘div’,{style:{fontSize:13,color:C.txtL,lineHeight:1.7,marginBottom:16}},‘5つの質問に答えるだけで\n今の旅のスタート地点がわかるよ。’),
+h(Btn,{label:‘STEP 2 へ進む →’,onClick:()=>nav(‘check’)}))));
+};
+/* ── 現在地チェック ── */
+const Check=()=>{
+const{result,setResult,nav}=useContext(Ctx);
+const qs=QS_MAP[result.userType]||QS_MAP.anxious;
+const[qi,setQi]=useState(0);
+const[sc,setSc]=useState([]);
+const tp=TYPES[result.userType]||TYPES.stable;
+const q=qs[qi];
+const pick=v=>{
+const ns=[…sc,v];
+if(qi<qs.length-1){setSc(ns);setQi(qi+1);}
+else{
+const lv=calcLv(ns);
+setResult(r=>({…r,level:lv}));
+nav(‘level_result’);
+}
+};
+const pct=Math.round((qi/qs.length)*100);
+return h(‘div’,{className:‘se’,style:{minHeight:‘100vh’,paddingBottom:40}},
+h(‘div’,{style:{background:tp.gr,padding:‘28px 20px 22px’,borderRadius:‘0 0 28px 28px’,marginBottom:24}},
+h(‘div’,{style:{fontSize:11,fontWeight:700,letterSpacing:‘1.5px’,color:‘rgba(61,51,71,.4)’,marginBottom:4,textTransform:‘uppercase’}},‘STEP 2 · 現在地チェック’),
+h(‘div’,{style:{display:‘flex’,alignItems:‘center’,gap:10,marginBottom:14}},
+h(‘div’,{style:{fontSize:22}},tp.em),
+h(‘div’,{style:{fontFamily:”‘Kaisei Opti’,serif”,fontSize:18,fontWeight:700}},${tp.name}の旅)),
+h(‘div’,{style:{display:‘flex’,justifyContent:‘space-between’,fontSize:12,color:‘rgba(61,51,71,.4)’,marginBottom:8}},
+h(‘span’,null,質問 ${qi+1} / ${qs.length}),
+h(‘span’,null,${pct}%)),
+h(Bar,{v:pct,bg:‘rgba(255,255,255,.35)’,col:‘rgba(255,255,255,.85)’,ht:7})),
+h(‘div’,{style:{padding:‘0 16px’}},
+h(‘div’,{className:‘pp’,key:qi,style:{background:‘rgba(255,255,255,.97)’,borderRadius:22,padding:‘20px’,boxShadow:C.sh,border:1px solid ${C.bdr},marginBottom:18}},
+h(‘div’,{style:{fontFamily:”‘Kaisei Opti’,serif”,fontSize:17,fontWeight:700,lineHeight:1.65,color:C.txt}},q.text)),
+h(‘div’,{style:{display:‘flex’,flexDirection:‘column’,gap:10}},
+q.opts.map((op,i)=>
+h(‘button’,{key:i,onClick:()=>pick(op.s),style:{
+background:‘rgba(255,255,255,.97)’,border:1.5px solid ${C.bdr},borderRadius:16,
+padding:‘13px 16px’,textAlign:‘left’,fontSize:15,color:C.txt,
+fontWeight:500,lineHeight:1.55,cursor:‘pointer’,transition:‘all .15s’,
+boxShadow:C.sh,display:‘flex’,alignItems:‘center’,gap:12},
+onMouseEnter:x=>{x.currentTarget.style.borderColor=C.pur;x.currentTarget.style.background=C.purXL;},
+onMouseLeave:x=>{x.currentTarget.style.borderColor=C.bdr;x.currentTarget.style.background=‘rgba(255,255,255,.97)’;}},
+h(‘span’,{style:{display:‘inline-flex’,width:26,height:26,borderRadius:‘50%’,
+background:${C.pur}18,color:C.pur,fontWeight:700,fontSize:13,
+alignItems:‘center’,justifyContent:‘center’,flexShrink:0}},
+String.fromCharCode(65+i)),
+op.t)))));
+};
+/* ── レベル結果 ── */
+const LevelResult=()=>{
+const{result,nav}=useContext(Ctx);
+const[showJourney,setShowJourney]=useState(false);
+const{userType,level}=result;
+const tp=TYPES[userType]||TYPES.stable;
+const lv=level||1;
+const lvName=LV_NAMES[lv-1];
+const lvEm=LV_EMS[lv-1];
+const lvGr=LV_GRS[lv-1];
+const XPR=[0,50,120,220,350,500,700];
+const xpNext=XPR[lv]||null;
+const lvSub={
+anxious:[‘この人がいないとダメ’,‘失いたくない’,‘好きだけど、このままでいいのかな’,‘相手は変えられない’,‘相手は相手の人生’,‘私は私の人生’,‘一緒にいられたら嬉しい’],
+avoidant:[‘一人でいるのが楽’,‘失いたくない’,‘好きだけど、このままでいいのかな’,‘相手は変えられない’,‘相手は相手の人生’,‘私は私の人生’,‘一緒にいられたら嬉しい’],
+stable:[‘自分の旅の始まり’,‘失いたくない’,‘好きだけど、このままでいいのかな’,‘相手は変えられない’,‘相手は相手の人生’,‘私は私の人生’,‘一緒にいられたら嬉しい’],
+};
+const sub=(lvSub[userType]||lvSub.anxious)[lv-1];
+const msgs={
+anxious:[‘今のあなたは、ここにいる。それだけでいい。’,‘手放すことは、失うことじゃない。’,‘揺れていい。波はいつか穏やかになる。’,‘理解は、諦めじゃない。智慧だ。’,‘相手の人生は相手のもの。あなたの人生はあなたのもの。’,‘あなたはあなたのままで、完全だ。’,‘愛は、自由の中で咲く花。’],
+avoidant:[‘今のあなたは、ここにいる。それだけでいい。’,‘つながることは、弱さじゃない。’,‘揺れていい。波はいつか穏やかになる。’,‘理解は、諦めじゃない。智慧だ。’,‘相手の人生は相手のもの。あなたの人生はあなたのもの。’,‘あなたはあなたのままで、完全だ。’,‘愛は、自由の中で咲く花。’],
+stable:[‘今のあなたは、ここにいる。それだけでいい。’,‘手放すことは、失うことじゃない。’,‘揺れていい。波はいつか穏やかになる。’,‘理解は、諦めじゃない。智慧だ。’,‘相手の人生は相手のもの。あなたの人生はあなたのもの。’,‘あなたはあなたのままで、完全だ。’,‘愛は、自由の中で咲く花。’],
+};
+const msg=(msgs[userType]||msgs.anxious)[lv-1];
+return h(‘div’,{className:‘se’,style:{minHeight:‘100vh’,paddingBottom:40}},
+h(‘div’,{style:{background:lvGr,padding:‘36px 20px 24px’,borderRadius:‘0 0 32px 32px’,textAlign:‘center’,marginBottom:24}},
+h(‘div’,{style:{fontSize:11,fontWeight:700,letterSpacing:‘1.5px’,color:‘rgba(61,51,71,.4)’,marginBottom:8,textTransform:‘uppercase’}},‘あなたの現在地’),
+h(‘div’,{className:‘fl’,style:{fontSize:64,marginBottom:10}},lvEm),
+h(‘div’,{style:{fontFamily:”‘Kaisei Opti’,serif”,fontSize:28,fontWeight:700,marginBottom:4}},Lv${lv} ${lvName}),
+h(‘div’,{style:{fontSize:14,color:‘rgba(61,51,71,.55)’,marginBottom:16,fontStyle:‘italic’}},「${sub}」),
+h(‘div’,{style:{background:‘rgba(255,255,255,.45)’,borderRadius:14,padding:‘10px 16px’,fontSize:13,color:‘rgba(61,51,71,.65)’,fontStyle:‘italic’,fontFamily:”‘Kaisei Opti’,serif”}},✦ ${msg})),
+h(‘div’,{style:{padding:‘0 16px’}},
+h(‘div’,{style:{background:‘rgba(255,255,255,.97)’,borderRadius:22,padding:‘18px 20px’,boxShadow:C.sh,border:1px solid ${C.bdr},marginBottom:16}},
+h(‘div’,{style:{display:‘flex’,alignItems:‘center’,gap:12,marginBottom:14}},
+h(‘div’,{style:{fontSize:32}},tp.em),
+h(‘div’,null,
+h(‘div’,{style:{fontFamily:”‘Kaisei Opti’,serif”,fontSize:17,fontWeight:700}},tp.name),
+h(‘div’,{style:{fontSize:13,color:C.txtL,marginTop:2}},‘の旅をはじめます’))),
+h(‘div’,{style:{display:‘flex’,justifyContent:‘space-between’,fontSize:12,color:C.txtM,marginBottom:6}},
+h(‘span’,null,‘XP’),
+xpNext?h(‘span’,null,0 / ${xpNext}):h(‘span’,null,‘MAX’)),
+h(Bar,{v:0,col:C.pur,ht:8})),
+h(‘div’,{style:{background:‘linear-gradient(135deg,#FDF0F8,#F0EAFA)’,borderRadius:22,padding:‘24px 20px’,marginBottom:16,border:‘1px solid rgba(184,157,212,.2)’}},
+h(‘div’,{style:{fontFamily:”‘Kaisei Opti’,serif”,fontSize:22,fontWeight:700,marginBottom:10,color:C.txt,lineHeight:1.55,textAlign:‘center’}},‘この旅、続けたい気持ちが\nあったら。’),
+h(‘div’,{style:{fontSize:14,color:C.txtL,lineHeight:1.8,marginBottom:20,textAlign:‘center’}},‘毎日の行動を記録しながら\nレベルアップしていく本編アプリで\nあなただけの旅を続けよう。’),
+showJourney
+?h(‘div’,{style:{background:‘rgba(255,255,255,.8)’,borderRadius:16,padding:‘14px 16px’,textAlign:‘center’,fontSize:14,color:C.pur,fontWeight:700,lineHeight:1.7}},‘🌸 準備中です。\nもうしばらくお待ちください。’)
+:h(‘button’,{
+onClick:function(){setShowJourney(true);},
+style:{display:‘block’,width:‘100%’,borderRadius:100,padding:‘15px’,
+fontSize:16,fontWeight:700,
+background:‘linear-gradient(135deg,#B89DD4,#89C4A0)’,color:’#fff’,
+border:‘none’,cursor:‘pointer’,
+boxShadow:‘0 4px 20px rgba(184,157,212,.4)’}},
+‘🌿 旅を続ける’)),
+h(‘button’,{
+onClick:function(){nav(‘opening’);},
+style:{display:‘block’,width:‘100%’,borderRadius:100,padding:‘12px’,
+fontSize:13,fontWeight:600,
+background:‘transparent’,color:C.txtM,
+border:‘1px solid rgba(184,157,212,.35)’,
+cursor:‘pointer’,marginBottom:20}},
+‘もう一度体験する’),
+h(‘div’,{style:{fontSize:11,color:C.txtM,lineHeight:1.7,textAlign:‘center’,padding:‘0 4px 8px’}},
+‘※ 愛着理論・認知行動療法・ACT療法などの心理学的知見をもとに設計したセルフケアツールです。医療・臨床的な診断ツールではありません。心身の不調が続く場合は専門家にご相談ください。’)));
+};
+/* ── アプリ ── */
+const App=()=>{
+const[screen,setScreen]=useState(‘opening’);
+const[hist,setHist]=useState([]);
+const[result,setResult]=useState({userType:null,level:null});
+const nav=to=>{setHist(h=>[…h,screen]);setScreen(to);document.getElementById(‘root’).scrollTop=0;};
+const screens={opening:Opening,diagnosis:Diagnosis,type_result:TypeResult,check:Check,level_result:LevelResult};
+const Screen=screens[screen]||Opening;
+return h(Ctx.Provider,{value:{result,setResult,nav}},h(Screen));
+};
+ReactDOM.render(h(App),document.getElementById(‘root’));
+</script>
+</body>
+</html>
